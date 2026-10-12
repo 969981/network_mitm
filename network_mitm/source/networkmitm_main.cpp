@@ -506,16 +506,22 @@ void Main() {
         AMS_LOG("SSL service traffic dumping disabled\n");
     }
 
-    /* Create mitm servers. */
-    R_ABORT_UNLESS(
-        (g_server_manager_for_user.RegisterMitmServer<SslServiceImpl>(
-            PortIndex_SslMitm, MitmSslServiceName)));
+    /* Create mitm servers. A conflicting MITM or a service registration
+       failure must not cause a console-wide fatal error. */
+    if (R_FAILED(g_server_manager_for_user.RegisterMitmServer<SslServiceImpl>(
+            PortIndex_SslMitm, MitmSslServiceName))) {
+        AMS_LOG("Cannot register ssl MITM; network_mitm stays inactive.\n");
+        return;
+    }
 
     if (hos::GetVersion() >= hos::Version_15_0_0 && should_mitm_all) {
-        R_ABORT_UNLESS(
-            (g_server_manager_for_system.RegisterMitmServer<SslServiceForSystemImpl>(
-                PortIndex_SslSystemMitm, MitmSslSystemServiceName)));
-        g_system_ssl_mitm_registered = true;
+        if (R_SUCCEEDED(
+                g_server_manager_for_system.RegisterMitmServer<SslServiceForSystemImpl>(
+                    PortIndex_SslSystemMitm, MitmSslSystemServiceName))) {
+            g_system_ssl_mitm_registered = true;
+        } else {
+            AMS_LOG("Cannot register ssl:s MITM; continuing with ssl only.\n");
+        }
     }
 
     /* Loop forever, servicing our services. */
