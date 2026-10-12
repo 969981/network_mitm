@@ -28,7 +28,7 @@ def archive_path() -> Path:
     numbers = []
     for field in ("MAJOR", "MINOR", "MICRO"):
         match = re.search(
-            rf"^#define\\s+NETWORK_MITM_VERSION_{field}\\s+(\\d+)\\s*$",
+            rf"^#define\s+NETWORK_MITM_VERSION_{field}\s+(\d+)\s*$",
             header,
             re.MULTILINE,
         )
