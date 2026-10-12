@@ -1,48 +1,59 @@
 name: Build
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
-
     defaults:
       run:
-        shell: 'bash'
-    
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
-      - name: Set git safe.directory for the working directory
-        run : git config --system --add safe.directory "$PWD"
+      - name: Set Git safe.directory
+        run: git config --system --add safe.directory "$PWD"
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
 
-      - name: Build libnx
+      - name: Build pinned libnx
         run: |
-          git clone https://github.com/switchbrew/libnx.git --branch master /tmp/libnx
-          pushd /tmp/libnx
-          make PREFIX="ccache aarch64-none-elf-"
-          make install
-          popd
+          set -euxo pipefail
+          git clone https://github.com/switchbrew/libnx.git /tmp/libnx
+          git -C /tmp/libnx checkout feebd026ca0f5dcc2119f46ad8e0d16ad3dd4973
+          make -C /tmp/libnx PREFIX="ccache aarch64-none-elf-"
+          make -C /tmp/libnx install
 
-      - name: Build
-        run: make PREFIX="ccache aarch64-none-elf-"
+      - name: Build network_mitm
+        run: |
+          set -euxo pipefail
+          git submodule status
+          git -C /tmp/libnx rev-parse HEAD
+          make PREFIX="ccache aarch64-none-elf-" 2>&1 | tee build.log
 
-      - name: Uploading executable out directory
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: network_mitm_raw_output.zip
+          name: network_mitm_build_log
+          path: build.log
+          if-no-files-found: ignore
+
+      - name: Upload executable output
+        uses: actions/upload-artifact@v4
+        with:
+          name: network_mitm_raw_output
           path: network_mitm/out/*
           if-no-files-found: error
           compression-level: 9
 
-      - name: Uploading release
+      - name: Upload SD installer
         uses: actions/upload-artifact@v4
         with:
-          name: network_mitm.zip
+          name: network_mitm_sd_install
           path: out/*.zip
           if-no-files-found: error
           compression-level: 0
