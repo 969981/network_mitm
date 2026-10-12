@@ -62,6 +62,8 @@ void FinalizeFsHeap() { lmem::DestroyExpHeap(g_fs_heap_handle); }
 namespace {
 static fs::FileHandle g_logger_file;
 static s64 g_logger_file_ofs;
+static bool g_logger_file_open = false;
+static bool g_logger_write_enabled = false;
 constinit os::SdkMutex g_logger_file_mutex;
 
 void LogFileLogObserver(const diag::LogMetaData &meta,
@@ -70,8 +72,18 @@ void LogFileLogObserver(const diag::LogMetaData &meta,
 
     std::scoped_lock lk(g_logger_file_mutex);
 
-    R_ABORT_UNLESS(fs::WriteFile(g_logger_file, g_logger_file_ofs, body.message,
-                                 body.message_size, fs::WriteOption::Flush));
+    if (!g_logger_write_enabled) {
+        return;
+    }
+
+    // Logging is diagnostic only. If SD writes fail, stop logging instead of
+    // aborting the system module (and by extension potentially the console).
+    if (R_FAILED(fs::WriteFile(g_logger_file, g_logger_file_ofs,
+                               body.message, body.message_size,
+                               fs::WriteOption::Flush))) {
+        g_logger_write_enabled = false;
+        return;
+    }
     g_logger_file_ofs += body.message_size;
 }
 
@@ -83,13 +95,13 @@ void InitializeFileLogger() {
 
     auto result = fs::HasDirectory(&dir_exists, path);
     if (R_FAILED(result)) {
-        AMS_ABORT("Cannot access the sdcard!");
+        return;
     }
 
     if (!dir_exists) {
         result = fs::CreateDirectory(path);
         if (R_FAILED(result)) {
-            AMS_ABORT("Cannot create logs directory on the scard!");
+            return;
         }
     }
 
@@ -99,21 +111,27 @@ void InitializeFileLogger() {
 
     result = fs::CreateFile(path, 0);
     if (R_FAILED(result) && !fs::ResultPathAlreadyExists::Includes(result)) {
-        AMS_ABORT("Cannot create log file!");
+        return;
     }
 
-    R_ABORT_UNLESS(
-        fs::OpenFile(std::addressof(g_logger_file), path, fs::OpenMode_All));
-
+    if (R_FAILED(fs::OpenFile(std::addressof(g_logger_file), path,
+                              fs::OpenMode_All))) {
+        return;
+    }
+    g_logger_file_open = true;
+    g_logger_write_enabled = true;
     g_logger_file_ofs = 0;
 
     diag::impl::ReplaceDefaultLogObserver(LogFileLogObserver);
 }
 
 void FinalizeFileLogger() {
-    diag::impl::ResetDefaultLogObserver();
-
-    fs::CloseFile(g_logger_file);
+    if (g_logger_file_open) {
+        diag::impl::ResetDefaultLogObserver();
+        g_logger_write_enabled = false;
+        fs::CloseFile(g_logger_file);
+        g_logger_file_open = false;
+    }
 }
 } // namespace
 

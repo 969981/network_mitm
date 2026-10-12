@@ -64,7 +64,8 @@ PcapFileWriter::PcapFileWriter(fs::FileHandle file_handle,
                                EthernetPeerInfo dst_peer_info,
                                EthernetPeerInfo src_peer_info)
     : m_file_handle(file_handle), m_packet_lock(), m_link_type(link_type),
-      m_file_position(0), m_last_direction(PcapDirection::Unspecified),
+      m_file_position(0), m_write_failed(false),
+      m_last_direction(PcapDirection::Unspecified),
       m_last_packet_header_position(0), m_last_packet_header_size(0),
       m_dst_peer_info(dst_peer_info), m_src_peer_info(src_peer_info) {
     m_src_seq = 0x100000;
@@ -138,6 +139,10 @@ void PcapFileWriter::Write(PcapDirection direction, const void *buffer,
                            uint32_t buffer_size) {
     std::scoped_lock lk(m_packet_lock);
 
+    if (m_write_failed) {
+        return;
+    }
+
     const bool should_use_new_packet_header =
         m_last_direction == PcapDirection::Unspecified ||
         m_last_direction != direction;
@@ -149,14 +154,19 @@ void PcapFileWriter::Write(PcapDirection direction, const void *buffer,
 
 void PcapFileWriter::WriteFileAtPosition(uint64_t position, const void *buffer,
                                          size_t buffer_size) {
-    R_ABORT_UNLESS(fs::WriteFile(m_file_handle, position, buffer, buffer_size,
-                                 fs::WriteOption::None));
+    if (!m_write_failed &&
+        R_FAILED(fs::WriteFile(m_file_handle, position, buffer, buffer_size,
+                               fs::WriteOption::None))) {
+        m_write_failed = true;
+    }
 }
 
 void PcapFileWriter::WriteFile(const void *buffer, size_t buffer_size) {
     WriteFileAtPosition(m_file_position, buffer, buffer_size);
 
-    m_file_position += buffer_size;
+    if (!m_write_failed) {
+        m_file_position += buffer_size;
+    }
 }
 
 void PcapFileWriter::WritePacket(const void *extra_header,
@@ -181,9 +191,12 @@ void PcapFileWriter::WritePacket(const void *extra_header,
 
         m_last_packet_header_size = 0;
     } else {
-        R_ABORT_UNLESS(fs::ReadFile(m_file_handle,
-                                    m_last_packet_header_position,
-                                    &packet_header, sizeof(packet_header)));
+        if (R_FAILED(fs::ReadFile(m_file_handle,
+                                  m_last_packet_header_position,
+                                  &packet_header, sizeof(packet_header)))) {
+            m_write_failed = true;
+            return;
+        }
 
         packet_header.ts = timestamp;
         packet_header.capture_length += buffer_size;
@@ -203,8 +216,10 @@ void PcapFileWriter::WritePacket(const void *extra_header,
         WriteFile(buffer, buffer_size);
     }
 
-    if (should_use_new_packet_header) {
-        R_ABORT_UNLESS(fs::FlushFile(m_file_handle));
+    if (should_use_new_packet_header && !m_write_failed) {
+        if (R_FAILED(fs::FlushFile(m_file_handle))) {
+            m_write_failed = true;
+        }
     }
 
     m_last_packet_header_size += buffer_size;

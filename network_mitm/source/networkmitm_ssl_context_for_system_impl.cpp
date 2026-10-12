@@ -36,13 +36,14 @@ Result SslContextForSystemImpl::CreateConnection(
             char pcap_path[ams::fs::EntryNameLengthMax + 1];
 
             int retry_count = 0;
-            const int max_retry_count = 5;
+            const int max_retry_count = 64;
 
             while ((R_FAILED(pcap_setup) || retry_count == 0) &&
                    retry_count < max_retry_count) {
 
                 GetNewFilePathForPcap(pcap_path, sizeof(pcap_path),
-                                      m_client_info.program_id);
+                                      m_client_info.program_id,
+                                      static_cast<u32>(retry_count));
 
                 pcap_setup = fs::CreateFile(pcap_path, 0);
 
@@ -50,8 +51,11 @@ Result SslContextForSystemImpl::CreateConnection(
             }
 
             fs::FileHandle file_handle;
-            pcap_setup = fs::OpenFile(std::addressof(file_handle), pcap_path,
-                                      fs::OpenMode_All);
+            // Never open a previously existing file after CreateFile failed.
+            if (R_SUCCEEDED(pcap_setup)) {
+                pcap_setup = fs::OpenFile(std::addressof(file_handle),
+                                          pcap_path, fs::OpenMode_All);
+            }
 
             if (R_SUCCEEDED(pcap_setup)) {
                 u8 mac_dst[6] = {0xfe, 0xff, 0x20, 0x00, 0x01, 0x00};
@@ -202,13 +206,14 @@ Result SslContextForSystemImpl::CreateConnectionEx(
             char pcap_path[ams::fs::EntryNameLengthMax + 1];
 
             int retry_count = 0;
-            const int max_retry_count = 5;
+            const int max_retry_count = 64;
 
             while ((R_FAILED(pcap_setup) || retry_count == 0) &&
                    retry_count < max_retry_count) {
 
                 GetNewFilePathForPcap(pcap_path, sizeof(pcap_path),
-                                      m_client_info.program_id);
+                                      m_client_info.program_id,
+                                      static_cast<u32>(retry_count));
 
                 pcap_setup = fs::CreateFile(pcap_path, 0);
 
@@ -216,8 +221,11 @@ Result SslContextForSystemImpl::CreateConnectionEx(
             }
 
             fs::FileHandle file_handle;
-            pcap_setup = fs::OpenFile(std::addressof(file_handle), pcap_path,
-                                      fs::OpenMode_All);
+            // Never open a previously existing file after CreateFile failed.
+            if (R_SUCCEEDED(pcap_setup)) {
+                pcap_setup = fs::OpenFile(std::addressof(file_handle),
+                                          pcap_path, fs::OpenMode_All);
+            }
 
             if (R_SUCCEEDED(pcap_setup)) {
                 u8 mac_dst[6] = {0xfe, 0xff, 0x20, 0x00, 0x01, 0x00};
