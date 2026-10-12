@@ -51,3 +51,23 @@ PCAP: `sd:/atmosphere/pcap/<16-digit-program-id>/*.pcap`.
 ### Report status
 
 The first code changes address identified abort paths in diagnostic log and PCAP I/O, and prevent same-second filename collisions. They do **not** establish the root cause of the user-reported boot crash without a fatal report and hardware reproduction. HOS 23.0.1 runtime behaviour still requires validation.
+
+## Automated build and experimental pre-release
+
+The maintenance branch GitHub Actions workflow at
+`https://github.com/969981/network_mitm/actions/workflows/build.yml`
+can be started using **Run workflow**, with branch
+`fix/hos-23.0.1-atmosphere-1.12`. If workflows are not available, the
+repository owner must enable GitHub Actions in the repository Settings.
+
+The workflow:
+1. Builds pinned libnx and the pinned Atmosphere-libs network_mitm module.
+2. Checks `exefs.nsp`, `boot2.flag`, and `mitm.lst`; validates the ZIP contents.
+3. Uploads build logs, raw executable files and SD installer artifacts.
+4. **Only if manually dispatched on this exact branch and the build passes,**
+   publishes prerelease `v0.2.11-hos23.0.1-rc1`, including installer ZIP and
+   SHA256SUMS.txt. Push/PR checks do not publish.
+
+This pre-release is explicitly **experimental** pending HOS 23.0.1
+hardware validation. No release should be described as tested merely because
+a compiler returned success.
