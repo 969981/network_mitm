@@ -1,3 +1,7 @@
+# Boot probe build: no SSL MITM registration. Diagnosis only; not a release.
+# Deliberately different branch so normal release remains unchanged.
+export NETWORK_MITM_BOOT_PROBE := 1
+
 OUTDIR := out
 TITLE_ID := 4200000000000666
 SD_ROOT := $(OUTDIR)/sd

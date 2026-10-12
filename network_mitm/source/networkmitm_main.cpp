@@ -105,9 +105,16 @@ void InitializeFileLogger() {
         }
     }
 
+#ifdef NETWORK_MITM_BOOT_PROBE
+    // Separate log file prevents confusing old RC1 observer contents with probe.
+    util::SNPrintf(path, sizeof(path),
+                   "%s:/atmosphere/logs/network_mitm_boot_probe.log",
+                   ams::fs::impl::SdCardFileSystemMountName);
+#else
     util::SNPrintf(path, sizeof(path),
                    "%s:/atmosphere/logs/network_mitm_observer.log",
                    ams::fs::impl::SdCardFileSystemMountName);
+#endif
 
     result = fs::CreateFile(path, 0);
     if (R_FAILED(result) && !fs::ResultPathAlreadyExists::Includes(result)) {
@@ -164,17 +171,25 @@ void InitializeSystemModule() {
     // ams::lm::Initialize();
     InitializeFileLogger();
 
+#ifdef NETWORK_MITM_BOOT_PROBE
+    // Phase P0: deliberately avoid IPC connections to set:sys/time before
+    // testing their early-boot availability. Do not register SSL services.
+    AMS_LOG("BOOT_PROBE P0: SD mounted and logger initialized; skipping setsys/time.\\n");
+#else
     /* Initialize settings */
     R_ABORT_UNLESS((Result)::setsysInitialize());
 
     /* Initialize time for file dating :3 */
     R_ABORT_UNLESS((Result)::timeInitialize());
+#endif
 }
 
 void FinalizeSystemModule() {
+#ifndef NETWORK_MITM_BOOT_PROBE
     timeExit();
 
     setsysExit();
+#endif
 
     FinalizeFileLogger();
 
@@ -471,6 +486,14 @@ void Initialize(bool should_dump_ssl_traffic, bool should_mitm_all,
 } // namespace ssl::sf::impl
 
 void Main() {
+#ifdef NETWORK_MITM_BOOT_PROBE
+    // P0 boot isolation only: intentionally never intercept SSL or create
+    // server threads. Leave the sysmodule alive but idle for observation.
+    AMS_LOG("BOOT_PROBE P0: Main reached, SSL services NOT registered.\\n");
+    while (true) {
+        os::SleepThread(TimeSpan::FromSeconds(30));
+    }
+#else
     /* Set thread name. */
     os::SetThreadNamePointer(os::GetCurrentThread(),
                              AMS_GET_SYSTEM_THREAD_NAME(network_mitm, Main));
@@ -527,6 +550,7 @@ void Main() {
     /* Loop forever, servicing our services. */
     AMS_LOG("Accepting requests.\n");
     ProcessForServerOnAllThreads();
+#endif // NETWORK_MITM_BOOT_PROBE
 }
 
 } // namespace ams

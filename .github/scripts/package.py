@@ -42,7 +42,8 @@ def archive_path() -> Path:
         ).strip()
     if not re.fullmatch(r"[0-9a-fA-F]{8,64}", revision):
         raise RuntimeError("Unrecognized git revision")
-    name = f"network_mitm-{'.'.join(numbers)}-hos23.0.1-{revision[:8]}.zip"
+    suffix = "-BOOT-PROBE-P0-NO-SSL" if os.environ.get("NETWORK_MITM_BOOT_PROBE") == "1" else ""
+    name = f"network_mitm-{'.'.join(numbers)}-hos23.0.1-{revision[:8]}{suffix}.zip"
     return OUTPUT / name
 
 
