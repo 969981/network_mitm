@@ -1,5 +1,14 @@
 name: Build
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: "Publish a preview release AFTER verified on hardware"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -67,14 +76,15 @@ jobs:
           compression-level: 0
 
       # Publish an explicitly experimental pre-release only when this workflow
-      # is started on the maintenance branch, after a full successful build.
-      # Pull request checks never publish a release.
+      # Explicit opt-in required: RC1 was reported to hang at the boot logo.
+      # Normal push/PR/dispatch builds upload artifacts but NEVER publish.
+      # Do not enable publish_preview before hardware validation.
       - name: Publish HOS 23.0.1 pre-release
-        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && github.ref == 'refs/heads/fix/hos-23.0.1-atmosphere-1.12' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && github.ref == 'refs/heads/fix/hos-23.0.1-atmosphere-1.12' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.11-hos23.0.1-rc1
-          name: network_mitm 0.2.11 — HOS 23.0.1 preview (unverified)
+          tag_name: v0.2.11-hos23.0.1-rc2
+          name: network_mitm 0.2.11 — HOS 23.0.1 RC2 (hardware validation required)
           prerelease: true
           draft: false
           make_latest: false

@@ -77,3 +77,18 @@ a compiler returned success.
 The Actions run [38273618083](https://github.com/969981/network_mitm/actions/runs/38273618083) compiled `network_mitm.elf`, `network_mitm.nso`, and `network_mitm.nsp` successfully. The next step failed at `ls out/*.zip` because no ZIP existed under `out/`. The legacy `Makefile` used a silent `zip` invocation followed by `cd` in one shell recipe, which could mask the packaging failure with a successful final exit code. The precise suppressed ZIP failure message was not captured.
 
 The new packager `.github/scripts/package.py` uses only the Python standard library, generates a slash-free revision-tagged ZIP from `out/sd/`, verifies required files/CRC/installer contents, and writes SHA-256 checksums. Make now fails on missing ZIP instead of reporting success. CI verifies the generated archive again before uploading or publishing any release.
+
+## Boot-blocker — RC1 (2026-10-12)
+
+The successful build [38277044749](https://github.com/969981/network_mitm/actions/runs/38277044749) produced [v0.2.11-hos23.0.1-rc1](https://github.com/969981/network_mitm/releases/tag/v0.2.11-hos23.0.1-rc1), but a HOS 23.0.1 / Atmosphère 1.12.0 console subsequently **hung at the Nintendo Switch logo** after installation. A successful CI build only validates packaging and linking; it does not validate early boot/runtime SSL compatibility. Track: [Issue #2](https://github.com/969981/network_mitm/issues/2).
+
+### First isolate before editing the SSL IPC implementation
+
+1. Cold-power-off and remove only `atmosphere/contents/4200000000000666/`; verify the console boots.
+2. Back up `system_settings.ini`, then, with the module still present, change `enable_ssl = u8!0x0` and reboot. No PCAP capture will occur in this mode. If this boots, the hang is likely after enabling SSL interception; if not, it is earlier in module initialization, resource use, or conflict with another module.
+3. Collect `atmosphere/logs/network_mitm_observer.log`, `atmosphere/fatal_errors/` when present, and a list of enabled sysmodules. Logs may contain secrets; sanitize before sharing.
+4. Do not enable `should_mitm_all` or `should_disable_ssl_verification` during isolation.
+
+### Release safety gate
+
+Workflow now builds automatically but **does not publish** unless manually dispatched with `publish_preview: true`. RC1 is a known boot-blocking candidate; planned RC2 must stay a pre-release, unpromoted pending hardware testing. The previous document's automatic-publish instruction is superseded by this gate.

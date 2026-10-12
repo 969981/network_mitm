@@ -1,5 +1,14 @@
 # network_mitm
 
+> [!CAUTION]
+> **HOS 23.0.1 / Atmosphère 1.12.0 — RC1 boot hang reported.**
+> Installing `v0.2.11-hos23.0.1-rc1` may prevent boot past the Nintendo Switch logo.
+> [Issue #2](https://github.com/969981/network_mitm/issues/2) tracks the blocker.
+> Do not install the RC1 binary. To recover, power off and move
+> `sd:/atmosphere/contents/4200000000000666/` to your PC, then reboot.
+> Fresh builds are for diagnostics only until runtime verification.
+
+
 Nintendo Switch Network MITM sysmodule.
 
 network_mitm allows you to:
