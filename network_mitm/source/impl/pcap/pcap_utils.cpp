@@ -33,7 +33,7 @@ static void GetBaseDirectory(char *buffer, size_t buffer_size) {
 }
 
 static void GetTitleDirectrory(char *buffer, size_t buffer_size,
-                               ncm::ProgramId programId, u32 attempt) {
+                               ncm::ProgramId programId) {
     char base_path[ams::fs::EntryNameLengthMax + 1];
 
     GetBaseDirectory(base_path, sizeof(base_path));
@@ -59,7 +59,7 @@ void GetCurrentTime(u64 *out) {
 }
 
 void GetNewFilePathForPcap(char *buffer, size_t buffer_size,
-                           ncm::ProgramId programId) {
+                           ncm::ProgramId programId, u32 attempt) {
     u64 timestamp;
 
     GetCurrentTime(&timestamp);

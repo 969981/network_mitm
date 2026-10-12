@@ -71,10 +71,10 @@ jobs:
           compression-level: 0
 
       # Publish an explicitly experimental pre-release only when this workflow
-      # is started manually on the maintenance branch, after a full build.
-      # CI runs from pushes / pull requests never publish a release.
+      # is started on the maintenance branch, after a full successful build.
+      # Pull request checks never publish a release.
       - name: Publish HOS 23.0.1 pre-release
-        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/fix/hos-23.0.1-atmosphere-1.12' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && github.ref == 'refs/heads/fix/hos-23.0.1-atmosphere-1.12' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.2.11-hos23.0.1-rc1
