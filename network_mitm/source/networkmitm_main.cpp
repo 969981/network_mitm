@@ -248,6 +248,7 @@ Span<uint8_t> g_ca_certificate_public_key_pem;
 Span<uint8_t> g_ca_certificate_public_key_der = Span<uint8_t>();
 bool g_should_dump_ssl_traffic;
 bool g_should_mitm_all;
+bool g_system_ssl_mitm_registered = false;
 bool g_should_disable_ssl_verification;
 PcapLinkType g_link_type;
 
@@ -334,7 +335,9 @@ void LoopServerThreadForSystem(void *) {
 }
 
 void ProcessForServerOnAllThreads() {
-    bool has_system_manager = hos::GetVersion() >= hos::Version_15_0_0;
+    // The ssl:s service only MITMs when should_mitm_all is enabled.
+    // Avoid registering and servicing an otherwise idle system MITM port.
+    bool has_system_manager = g_system_ssl_mitm_registered;
 
     /* Initialize threads. */
     if constexpr (NumExtraThreads > 0) {
@@ -508,10 +511,11 @@ void Main() {
         (g_server_manager_for_user.RegisterMitmServer<SslServiceImpl>(
             PortIndex_SslMitm, MitmSslServiceName)));
 
-    if (hos::GetVersion() >= hos::Version_15_0_0) {
+    if (hos::GetVersion() >= hos::Version_15_0_0 && should_mitm_all) {
         R_ABORT_UNLESS(
             (g_server_manager_for_system.RegisterMitmServer<SslServiceImpl>(
                 PortIndex_SslSystemMitm, MitmSslSystemServiceName)));
+        g_system_ssl_mitm_registered = true;
     }
 
     /* Loop forever, servicing our services. */

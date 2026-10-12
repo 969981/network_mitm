@@ -43,3 +43,11 @@ PCAP: `sd:/atmosphere/pcap/<16-digit-program-id>/*.pcap`.
 - [ ] Reboot / unload rollback safe; verify HOME traffic collection
 
 **Do not share PCAPs without removing tokens, personal data, and certificates.**
+
+## HOS 23.x capture scope (safe default)
+
+`ssl:s` is now registered only when `should_mitm_all = u8!0x1`, because the service's own `ShouldMitm` was already returning false for every client otherwise. This avoids setting up an unused system-service MITM port and worker threads on modern firmware. Default Pokémon HOME application `ssl` interception is unchanged. **Do not enable system-wide MITM during first-boot testing.**
+
+### Report status
+
+The first code changes address identified abort paths in diagnostic log and PCAP I/O, and prevent same-second filename collisions. They do **not** establish the root cause of the user-reported boot crash without a fatal report and hardware reproduction. HOS 23.0.1 runtime behaviour still requires validation.
