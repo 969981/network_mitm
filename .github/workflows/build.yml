@@ -1,5 +1,9 @@
 name: Build
-on: [push, workflow_dispatch]
+# Register this workflow on the repository default branch so it can be
+# manually dispatched against fix/hos-23.0.1-atmosphere-1.12.
+# Automatic builds of this legacy branch are intentionally disabled;
+# select the maintained branch when dispatching.
+on: [workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
