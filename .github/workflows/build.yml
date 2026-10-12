@@ -39,12 +39,8 @@ jobs:
       - name: Verify installer and produce checksums
         run: |
           set -euxo pipefail
-          test -s out/sd/atmosphere/contents/4200000000000666/exefs.nsp
-          test -f out/sd/atmosphere/contents/4200000000000666/flags/boot2.flag
-          test -f out/sd/atmosphere/contents/4200000000000666/mitm.lst
-          ls -l out/*.zip
-          unzip -l out/*.zip | grep -F "4200000000000666/exefs.nsp"
-          (cd out && sha256sum ./*.zip > SHA256SUMS.txt)
+          python3 .github/scripts/package.py --verify
+          ls -lh out/*.zip out/SHA256SUMS.txt
 
       - name: Upload build log
         if: always()

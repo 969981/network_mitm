@@ -71,3 +71,9 @@ The workflow:
 This pre-release is explicitly **experimental** pending HOS 23.0.1
 hardware validation. No release should be described as tested merely because
 a compiler returned success.
+
+## Build #2 failure: packaging stage (2026-10-12)
+
+The Actions run [38273618083](https://github.com/969981/network_mitm/actions/runs/38273618083) compiled `network_mitm.elf`, `network_mitm.nso`, and `network_mitm.nsp` successfully. The next step failed at `ls out/*.zip` because no ZIP existed under `out/`. The legacy `Makefile` used a silent `zip` invocation followed by `cd` in one shell recipe, which could mask the packaging failure with a successful final exit code. The precise suppressed ZIP failure message was not captured.
+
+The new packager `.github/scripts/package.py` uses only the Python standard library, generates a slash-free revision-tagged ZIP from `out/sd/`, verifies required files/CRC/installer contents, and writes SHA-256 checksums. Make now fails on missing ZIP instead of reporting success. CI verifies the generated archive again before uploading or publishing any release.
