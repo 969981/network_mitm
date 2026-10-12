@@ -1,48 +1,96 @@
 name: Build
-on: [push, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
-
+    permissions:
+      contents: write
     defaults:
       run:
-        shell: 'bash'
-    
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
-      - name: Set git safe.directory for the working directory
-        run : git config --system --add safe.directory "$PWD"
+      - name: Set Git safe.directory
+        run: git config --system --add safe.directory "$PWD"
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
 
-      - name: Build libnx
+      - name: Build pinned libnx
         run: |
-          git clone https://github.com/switchbrew/libnx.git --branch master /tmp/libnx
-          pushd /tmp/libnx
-          make PREFIX="ccache aarch64-none-elf-"
-          make install
-          popd
+          set -euxo pipefail
+          git clone https://github.com/switchbrew/libnx.git /tmp/libnx
+          git -C /tmp/libnx checkout feebd026ca0f5dcc2119f46ad8e0d16ad3dd4973
+          make -C /tmp/libnx PREFIX="ccache aarch64-none-elf-"
+          make -C /tmp/libnx install
 
-      - name: Build
-        run: make PREFIX="ccache aarch64-none-elf-"
+      - name: Build network_mitm
+        run: |
+          set -euxo pipefail
+          git submodule status
+          git -C /tmp/libnx rev-parse HEAD
+          make PREFIX="ccache aarch64-none-elf-" 2>&1 | tee build.log
 
-      - name: Uploading executable out directory
+      - name: Verify installer and produce checksums
+        run: |
+          set -euxo pipefail
+          test -s out/sd/atmosphere/contents/4200000000000666/exefs.nsp
+          test -f out/sd/atmosphere/contents/4200000000000666/flags/boot2.flag
+          test -f out/sd/atmosphere/contents/4200000000000666/mitm.lst
+          ls -l out/*.zip
+          unzip -l out/*.zip | grep -F "4200000000000666/exefs.nsp"
+          (cd out && sha256sum ./*.zip > SHA256SUMS.txt)
+
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: network_mitm_raw_output.zip
+          name: network_mitm_build_log
+          path: build.log
+          if-no-files-found: ignore
+
+      - name: Upload executable output
+        uses: actions/upload-artifact@v4
+        with:
+          name: network_mitm_raw_output
           path: network_mitm/out/*
           if-no-files-found: error
           compression-level: 9
 
-      - name: Uploading release
+      - name: Upload SD installer
         uses: actions/upload-artifact@v4
         with:
-          name: network_mitm.zip
+          name: network_mitm_sd_install
           path: out/*.zip
           if-no-files-found: error
           compression-level: 0
+
+      # Publish an explicitly experimental pre-release only when this workflow
+      # is started manually on the maintenance branch, after a full build.
+      # CI runs from pushes / pull requests never publish a release.
+      - name: Publish HOS 23.0.1 pre-release
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/fix/hos-23.0.1-atmosphere-1.12' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.2.11-hos23.0.1-rc1
+          name: network_mitm 0.2.11 — HOS 23.0.1 preview (unverified)
+          prerelease: true
+          draft: false
+          make_latest: false
+          fail_on_unmatched_files: true
+          body: |
+            Experimental binary built from fix/hos-23.0.1-atmosphere-1.12.
+            Targets Atmosphère 1.12.0 with HOS 23.0.1.
+            NOT validated on physical hardware; do not install on a primary console.
+            Includes dependency alignment, non-fatal logging/capture I/O,
+            PCAP file collision handling, and reduced ssl:s MITM scope.
+            Back up SD before installing. To roll back, remove
+            atmosphere/contents/4200000000000666 from SD.
+          files: |
+            out/*.zip
+            out/SHA256SUMS.txt

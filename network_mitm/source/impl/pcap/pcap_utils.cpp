@@ -33,7 +33,7 @@ static void GetBaseDirectory(char *buffer, size_t buffer_size) {
 }
 
 static void GetTitleDirectrory(char *buffer, size_t buffer_size,
-                               ncm::ProgramId programId) {
+                               ncm::ProgramId programId, u32 attempt) {
     char base_path[ams::fs::EntryNameLengthMax + 1];
 
     GetBaseDirectory(base_path, sizeof(base_path));
@@ -68,7 +68,9 @@ void GetNewFilePathForPcap(char *buffer, size_t buffer_size,
 
     GetTitleDirectrory(title_path, sizeof(title_path), programId);
 
-    util::SNPrintf(buffer, buffer_size - 1, "%s/%011lu.pcap", title_path,
-                   timestamp);
+    // Timestamps are only second-resolution. Distinguish concurrent SSL
+    // connections to avoid opening and overwriting an existing PCAP.
+    util::SNPrintf(buffer, buffer_size - 1, "%s/%011lu-%03u.pcap",
+                   title_path, timestamp, attempt);
 }
 } // namespace ams::ssl::mitm::pcap

@@ -18,6 +18,6 @@
 
 namespace ams::ssl::mitm::pcap {
     Result EnsureDirectory(ncm::ProgramId programId);
-    void GetNewFilePathForPcap(char *buffer, size_t buffer_size, ncm::ProgramId programId);
+    void GetNewFilePathForPcap(char *buffer, size_t buffer_size, ncm::ProgramId programId, u32 attempt);
     void GetCurrentTime(u64 *out);
 }

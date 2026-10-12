@@ -45,6 +45,7 @@ namespace ams::ssl::mitm::pcap {
             os::SdkMutex m_packet_lock;
             PcapLinkType m_link_type;
             uint64_t m_file_position;
+            bool m_write_failed;
             PcapDirection m_last_direction;
             uint64_t m_last_packet_header_position;
             uint64_t m_last_packet_header_size;
