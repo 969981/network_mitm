@@ -174,7 +174,7 @@ void InitializeSystemModule() {
 #ifdef NETWORK_MITM_BOOT_PROBE
     // Phase P0: deliberately avoid IPC connections to set:sys/time before
     // testing their early-boot availability. Do not register SSL services.
-    AMS_LOG("BOOT_PROBE P0: SD mounted and logger initialized; skipping setsys/time.\\n");
+    AMS_LOG("BOOT_PROBE P0: SD mounted and logger initialized; skipping setsys/time.\n");
 #else
     /* Initialize settings */
     R_ABORT_UNLESS((Result)::setsysInitialize());
@@ -489,7 +489,7 @@ void Main() {
 #ifdef NETWORK_MITM_BOOT_PROBE
     // P0 boot isolation only: intentionally never intercept SSL or create
     // server threads. Leave the sysmodule alive but idle for observation.
-    AMS_LOG("BOOT_PROBE P0: Main reached, SSL services NOT registered.\\n");
+    AMS_LOG("BOOT_PROBE P0: Main reached, SSL services NOT registered.\n");
     while (true) {
         os::SleepThread(TimeSpan::FromSeconds(30));
     }
